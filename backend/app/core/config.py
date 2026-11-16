@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     supabase_url: str | None = None
     supabase_jwt_secret: str | None = None
+    supabase_service_role_key: str | None = None
+    supabase_storage_bucket: str = "comai-deliverables"
     max_agent_steps: int = 8
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
