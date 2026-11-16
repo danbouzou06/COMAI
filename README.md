@@ -2,72 +2,77 @@
 
 COMAI est une plateforme SaaS multi-agents destinée aux agences de communication et de marketing.
 
-## Socle actuel
+## Socle de la branche
 
-La branche `feature/bootstrap-comai` contient le premier socle backend :
+La branche `feature/bootstrap-comai` contient désormais :
 
-- API FastAPI ;
-- contrats Pydantic pour les missions et résultats ;
-- registre des agents ;
-- Strategist AI, Copywriter AI et Creative AI ;
-- routes de consultation des agents et d’exécution des missions ;
-- tests automatisés de base.
+- API FastAPI et agents initiaux ;
+- modèles SQLAlchemy pour organisations, membres, clients, projets, missions, tâches, livrables et audits ;
+- migration Alembic initiale ;
+- repositories filtrés par `organization_id` ;
+- validation JWT Supabase et contrôle d’organisation sur les routes de missions ;
+- adaptateur Supabase Storage avec chemins par organisation ;
+- file et worker Redis ;
+- COMAI Manager et workflow LangGraph parallèle ;
+- Docker Compose pour PostgreSQL et Redis.
 
-Les résultats actuels sont des structures de travail locales. Aucune API OpenAI, base PostgreSQL, génération d’image ou action externe n’est déclarée opérationnelle à ce stade.
+Les secrets ne sont jamais stockés dans Git. Les services réels doivent être configurés localement ou dans la CI.
 
-## Installation du backend
+## Démarrage des services
 
-Pré-requis : Python 3.12 ou supérieur.
+```bash
+docker compose up -d postgres redis
+```
+
+## Installation backend
 
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate  # Windows PowerShell : .venv\\Scripts\\Activate.ps1
 pip install -e ".[test]"
+cp .env.example .env
 ```
 
-## Lancement
+Renseignez ensuite les clés OpenAI et Supabase dans `.env`.
+
+## Base de données
+
+```bash
+cd backend
+alembic upgrade head
+```
+
+## API et worker
 
 ```bash
 uvicorn app.main:app --reload
+python -m app.workers.mission_worker
 ```
 
-API : <http://127.0.0.1:8000>  
 Documentation OpenAPI : <http://127.0.0.1:8000/docs>
 
-## Vérification
+## Tests
 
 ```bash
+cd backend
 pytest -q
 ```
 
-## Routes initiales
+Les tests d’intégration nécessitant PostgreSQL, Redis, OpenAI ou Supabase doivent être exécutés avec les services et variables correspondants. Ils ne sont pas déclarés comme réussis tant qu’ils n’ont pas été exécutés dans cet environnement.
 
-| Méthode | Route | Usage |
+## Routes
+
+| Méthode | Route | Protection |
 |---|---|---|
-| GET | `/health` | Vérifier l’état de l’API |
-| GET | `/api/v1/agents` | Lister les agents disponibles |
-| POST | `/api/v1/missions/execute/{agent_id}` | Exécuter une mission sur un agent |
+| GET | `/health` | Publique |
+| GET | `/api/v1/agents` | À protéger selon le cas d’usage |
+| POST | `/api/v1/missions/execute/{agent_id}` | JWT Supabase + organisation |
+| POST | `/api/v1/missions/execute-parallel` | JWT Supabase + organisation |
 
-## Exemple de mission
+Les routes métier exigent notamment :
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/missions/execute/strategist_ai \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "task_id": "task-1",
-    "organization_id": "org-1",
-    "user_id": "user-1",
-    "objective": "Préparer une campagne de lancement à Niamey",
-    "context": {"secteur": "mode"},
-    "authorized_tools": []
-  }'
+```text
+Authorization: Bearer <supabase-jwt>
+X-Organization-Id: <organization-id>
 ```
-
-## Prochaines étapes
-
-1. Ajouter l’authentification et l’isolation multi-tenant.
-2. Introduire la persistance PostgreSQL et les migrations.
-3. Ajouter COMAI Manager et LangGraph.
-4. Connecter OpenAI derrière des interfaces configurables.
-5. Ajouter la mémoire, les coûts, les livrables et la validation humaine.
